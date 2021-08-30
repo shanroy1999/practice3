@@ -7,14 +7,29 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Microsoft.ApplicationInsights;
+using Microsoft.ApplicationInsights.DataContracts;
+using Microsoft.ApplicationInsights.AspNetCore.Extensions;
 
 namespace FunctionAppDemo1
 {
-    public static class Function1
+    public class Function1
     {
+
+        // Replace log messages and call Telemetry class
+        TelemetryClient Telemetry
+        {
+            get;
+        }
+
+        public Function1(TelemetryClient telemetry)
+        {
+            Telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+        }
+
         // Name of the function
         [FunctionName("ABC")]
-        public static async Task<IActionResult> Run(
+        public async Task<IActionResult> Run(
 
             // HttpTrigger => trigger as a result of HTTP request
             // here -> trigger is defined for get and post requests
@@ -23,7 +38,23 @@ namespace FunctionAppDemo1
             ILogger log)
         {
             // Information / Statement that will be shown in log when function called / executed
-            log.LogInformation("C# HTTP trigger function processed a request. This is Shantanu.");
+            Telemetry.TrackTrace("C# HTTP trigger function processed a request. This is Shantanu.");
+
+            Telemetry.TrackPageView(new PageViewTelemetry
+            {
+                Name = "ABC",
+                Url = new Uri(req.GetUri().GetLeftPart(UriPartial.Path)),
+                Timestamp = DateTime.UtcNow
+            });
+
+            try
+            {
+                ThrowException();
+            } catch(Exception e)
+            {
+                Telemetry.TrackException(e);
+            }
+
 
             // Function looks for name query parameter either in query string or in body of request.
             string name = req.Query["name"];
@@ -41,7 +72,12 @@ namespace FunctionAppDemo1
                 ? "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response."
                 : $"Hello, {name}. This HTTP triggered function executed successfully.";
 
-            return new OkObjectResult(responseMessage);
+            return await Task.FromResult(new OkObjectResult(responseMessage));
+        }
+
+        public void ThrowException()
+        {
+            throw new ApplicationException("Exception Testing");
         }
     }
 }
