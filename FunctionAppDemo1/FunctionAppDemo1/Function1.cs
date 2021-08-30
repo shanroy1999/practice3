@@ -57,7 +57,6 @@ namespace FunctionAppDemo1
                 Telemetry.TrackException(e);
             }
 
-
             // Function looks for name query parameter either in query string or in body of request.
             string name = req.Query["name"];
 

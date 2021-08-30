@@ -15,5 +15,28 @@ namespace FunctionAppDemo1
         {
             builder.Services.AddApplicationInsightsTelemetry();
         }
+
+        // This method gets called by the runtime. Use this method to add services to the container.
+        public void ConfigureServices(IServiceCollection services)
+        {
+            Microsoft.ApplicationInsights.AspNetCore.Extensions.ApplicationInsightsServiceOptions aiOptions
+                = new Microsoft.ApplicationInsights.AspNetCore.Extensions.ApplicationInsightsServiceOptions();
+            // Disables adaptive sampling.
+            aiOptions.EnableAdaptiveSampling = true;
+
+            // Disables QuickPulse (Live Metrics stream).
+            aiOptions.EnableQuickPulseMetricStream = true;
+            aiOptions.EnableDependencyTrackingTelemetryModule = true;
+            aiOptions.EnableHeartbeat = true;
+            aiOptions.EnableQuickPulseMetricStream = true;
+            aiOptions.EnablePerformanceCounterCollectionModule = true;
+            aiOptions.EnableAppServicesHeartbeatTelemetryModule = true;
+
+            // The following line enables Application Insights telemetry collection.
+            services.AddApplicationInsightsTelemetry(aiOptions);
+
+            // This code adds other services for your application.
+            services.AddMvcCore();
+        }
     }
 }
