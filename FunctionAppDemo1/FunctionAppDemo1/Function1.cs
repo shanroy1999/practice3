@@ -38,8 +38,10 @@ namespace FunctionAppDemo1
             ILogger log)
         {
             // Information / Statement that will be shown in log when function called / executed
+            // Send Trace message for display in Diagnostic Search
             Telemetry.TrackTrace("C# HTTP trigger function processed a request. This is Shantanu.");
 
+            // Send information about the page viewed in the application
             Telemetry.TrackPageView(new PageViewTelemetry
             {
                 Name = "ABC",
@@ -64,7 +66,7 @@ namespace FunctionAppDemo1
 
             // Deserialize Json Object to .Net object
             dynamic data = JsonConvert.DeserializeObject(requestBody);
-            name = name ?? data?.name;
+            name ??= data?.name;
 
             // if no name paramter specified  => Pass a name....
             // if name paramtere specified => Hello, name
