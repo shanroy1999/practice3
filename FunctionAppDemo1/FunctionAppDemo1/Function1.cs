@@ -11,6 +11,7 @@ using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.ApplicationInsights.AspNetCore.Extensions;
 using System.Collections.Generic;
+using Microsoft.ApplicationInsights.Extensibility;
 
 namespace FunctionAppDemo1
 {
@@ -68,9 +69,20 @@ namespace FunctionAppDemo1
             dynamic data = JsonConvert.DeserializeObject(requestBody);
             name ??= data?.name;
 
-            var dictionary = new Dictionary<string, string>();
-            dictionary.Add("nameParameter", name);
-            Telemetry.TrackEvent("Arguments", dictionary);
+            if (name.Equals("Ronaldo"))
+            {
+                var dictionary = new Dictionary<string, string>();
+                dictionary.Add("nameParameter", name);
+                Telemetry.TrackEvent("Ronaldo is best", dictionary);
+                Telemetry.TrackEvent("Ronaldo passed as an argument");
+            }
+            else
+            {
+                var dictionary = new Dictionary<string, string>();
+                dictionary.Add("nameParameter", name);
+                Telemetry.TrackEvent("This is not Ronaldo", dictionary);
+                Telemetry.TrackEvent("Ronaldo not passed as an argument");
+            }
 
             // if no name paramter specified  => Pass a name....
             // if name paramtere specified => Hello, name

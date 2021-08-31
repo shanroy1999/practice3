@@ -22,15 +22,14 @@ namespace FunctionAppDemo1
             Microsoft.ApplicationInsights.AspNetCore.Extensions.ApplicationInsightsServiceOptions aiOptions
                 = new Microsoft.ApplicationInsights.AspNetCore.Extensions.ApplicationInsightsServiceOptions();
             // Disables adaptive sampling.
-            aiOptions.EnableAdaptiveSampling = true;
+            aiOptions.EnableAdaptiveSampling = false;
 
             // Disables QuickPulse (Live Metrics stream).
-            aiOptions.EnableQuickPulseMetricStream = true;
-            aiOptions.EnableDependencyTrackingTelemetryModule = true;
-            aiOptions.EnableHeartbeat = true;
-            aiOptions.EnableQuickPulseMetricStream = true;
-            aiOptions.EnablePerformanceCounterCollectionModule = true;
-            aiOptions.EnableAppServicesHeartbeatTelemetryModule = true;
+            aiOptions.EnableQuickPulseMetricStream = false;
+            aiOptions.EnableDependencyTrackingTelemetryModule = false;
+            aiOptions.EnableHeartbeat = false;
+            aiOptions.EnablePerformanceCounterCollectionModule = false;
+            aiOptions.EnableAppServicesHeartbeatTelemetryModule = false;
 
             // The following line enables Application Insights telemetry collection.
             services.AddApplicationInsightsTelemetry(aiOptions);
