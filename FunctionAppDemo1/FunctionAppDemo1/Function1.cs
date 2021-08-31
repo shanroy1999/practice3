@@ -10,6 +10,7 @@ using Newtonsoft.Json;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.ApplicationInsights.AspNetCore.Extensions;
+using System.Collections.Generic;
 
 namespace FunctionAppDemo1
 {
@@ -66,6 +67,10 @@ namespace FunctionAppDemo1
             // Deserialize Json Object to .Net object
             dynamic data = JsonConvert.DeserializeObject(requestBody);
             name ??= data?.name;
+
+            var dictionary = new Dictionary<string, string>();
+            dictionary.Add("nameParameter", name);
+            Telemetry.TrackEvent("Arguments", dictionary);
 
             // if no name paramter specified  => Pass a name....
             // if name paramtere specified => Hello, name
