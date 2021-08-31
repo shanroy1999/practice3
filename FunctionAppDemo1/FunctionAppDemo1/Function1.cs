@@ -1,17 +1,16 @@
-using System;
-using System.IO;
-using System.Threading.Tasks;
+using Microsoft.ApplicationInsights;
+using Microsoft.ApplicationInsights.AspNetCore.Extensions;
+using Microsoft.ApplicationInsights.DataContracts;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using Microsoft.ApplicationInsights;
-using Microsoft.ApplicationInsights.DataContracts;
-using Microsoft.ApplicationInsights.AspNetCore.Extensions;
+using System;
 using System.Collections.Generic;
-using Microsoft.ApplicationInsights.Extensibility;
+using System.IO;
+using System.Threading.Tasks;
 
 namespace FunctionAppDemo1
 {
@@ -24,6 +23,7 @@ namespace FunctionAppDemo1
             get;
         }
 
+        // Dependency Injection for correctly configuring Application Insights
         public Function1(TelemetryClient telemetry)
         {
             Telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
@@ -54,7 +54,8 @@ namespace FunctionAppDemo1
             try
             {
                 ThrowException();
-            } catch(Exception e)
+            }
+            catch (Exception e)
             {
                 Telemetry.TrackException(e);
             }
