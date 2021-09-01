@@ -1,0 +1,8 @@
+{
+  "runtimeOptions": {
+    "additionalProbingPaths": [
+      "C:\\Users\\shantaroy\\.dotnet\\store\\|arch|\\|tfm|",
+      "C:\\Users\\shantaroy\\.nuget\\packages"
+    ]
+  }
+}
