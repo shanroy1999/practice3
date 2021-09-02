@@ -35,12 +35,12 @@ namespace FunctionAppDemo1
             Telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
         }
 
-        static string queue_connection = "Endpoint=sb://shanbus.servicebus.windows.net/;SharedAccessKeyName=policy1;SharedAccessKey=05vDGWYEyLO0St4xcAvZIBY13yaZ5mSb3kO2uJnUJhA=;";
-        static string queue_name = "appqueue";
+        static string queueConnection = "Endpoint=sb://shanbus.servicebus.windows.net/;SharedAccessKeyName=policy1;SharedAccessKey=05vDGWYEyLO0St4xcAvZIBY13yaZ5mSb3kO2uJnUJhA=;";
+        static string queueName = "appqueue";
 
-        static string topic_connection = "Endpoint=sb://shanbus.servicebus.windows.net/;SharedAccessKeyName=sendMessage;SharedAccessKey=HfnWz82NE+UNv7QbzCjPZePX/lKr8zzrAYW2YYWGzxc=;";
+        static string topicConnection = "Endpoint=sb://shanbus.servicebus.windows.net/;SharedAccessKeyName=sendMessage;SharedAccessKey=HfnWz82NE+UNv7QbzCjPZePX/lKr8zzrAYW2YYWGzxc=;";
         static string topic_name = "apptopic";
-        static string subscription_name = "S1";
+        static string subscriptionName = "S1";
 
         TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -89,10 +89,10 @@ namespace FunctionAppDemo1
 
             switch (type)
             {
-                case "queue":
+                case "queueSend":
                     {
 
-                        List<MessageContent> messages = new List<MessageContent>()
+                        List<MessageContent> messagesList = new List<MessageContent>()
                         {
                             new MessageContent() { MessageId = "1", Content = "HTTP Request Successful" },
                             new MessageContent() { MessageId = "2", Content = "Thank you for the submission" },
@@ -104,31 +104,31 @@ namespace FunctionAppDemo1
                         // SEND MESSAGE TO SERVICE BUS QUEUE
                         // ===================================================
 
-                        ServiceBusClient client = new ServiceBusClient(queue_connection);
-                        ServiceBusSender sender = client.CreateSender(queue_name);
+                        ServiceBusClient queueClient = new ServiceBusClient(queueConnection);
+                        ServiceBusSender queueSender = queueClient.CreateSender(queueName);
 
                         Console.WriteLine("Queue Messages Sent : ");
 
-                        foreach (MessageContent m in messages)
+                        foreach (MessageContent m in messagesList)
                         {
                             ServiceBusMessage ms = new ServiceBusMessage(m.ToString());
                             ms.ContentType = "application/json";
-                            sender.SendMessageAsync(ms).GetAwaiter().GetResult();
+                            queueSender.SendMessageAsync(ms).GetAwaiter().GetResult();
 
                             log.LogInformation($"Message Body : {ms.Body.ToString()}");
-                            Telemetry.TrackTrace($"Sending Message to the Queue {queue_name}");
+                            Telemetry.TrackTrace($"Sending Message to the Queue {queueName}");
                             Telemetry.TrackEvent($"Message Body : {ms.Body.ToString()}");
                         }
 
-                        await sender.DisposeAsync();
+                        await queueSender.DisposeAsync();
 
                         // ========================================================
                         // ADD TELEMETRY TO TRACK THE EVENTS FOR SERVICE BUS QUEUE
                         // =========================================================
 
                         // Check the number of messages in the queue
-                        var management_client = new ManagementClient(queue_connection);
-                        var queue = await management_client.GetQueueRuntimeInfoAsync(queue_name);
+                        var management_client = new ManagementClient(queueConnection);
+                        var queue = await management_client.GetQueueRuntimeInfoAsync(queueName);
                         var messageCount = queue.MessageCount;
                         var sample = new MetricTelemetry();
                         sample.Name = "queueLength";
@@ -150,13 +150,22 @@ namespace FunctionAppDemo1
                         log.LogInformation(msg);
                         Telemetry.TrackEvent(msg);
 
+                        await queueClient.DisposeAsync();
+
+                        break;
+                    }
+
+                case "queueReceive":
+                    {
+
                         // ========================================================
                         // RECEIVE MESSAGE FROM SERVICE BUS QUEUE
                         // ========================================================
 
                         // Create a receiver for the service bus
                         // Ensure that we only peek on the messages in the queue => ServiceBusReceiverOptions object
-                        ServiceBusReceiver receiver = client.CreateReceiver(queue_name,
+                        ServiceBusClient queueClient = new ServiceBusClient(queueConnection);
+                        ServiceBusReceiver queueReceiver = queueClient.CreateReceiver(queueName,
                             new ServiceBusReceiverOptions()
                             {
                                 // ReceiveMode = ServiceBusReceiveMode.PeekLock
@@ -164,26 +173,26 @@ namespace FunctionAppDemo1
                             });
 
                         // Create a received message from the receiver object
-                        var messages_received = receiver.ReceiveMessagesAsync(2).GetAwaiter().GetResult();
+                        var messagesReceived = queueReceiver.ReceiveMessagesAsync(2).GetAwaiter().GetResult();
 
                         Console.WriteLine("Queue Messages Received : ");
 
                         // Write the received message body on the console
-                        foreach (var message in messages_received)
+                        foreach (var message in messagesReceived)
                         {
                             log.LogInformation(message.SequenceNumber.ToString());
                             log.LogInformation(message.Body.ToString());
-                            Telemetry.TrackTrace($"Receiving Message from the Queue {queue_name}");
+                            Telemetry.TrackTrace($"Receiving Message from the Queue {queueName}");
                         }
 
                         // Resource Cleanup
-                        await client.DisposeAsync();
-                        await receiver.DisposeAsync();
+                        await queueClient.DisposeAsync();
+                        await queueReceiver.DisposeAsync();
 
                         break;
                     }
 
-                case "topic":
+                case "topicSend":
                     {
 
                         // ==============================================
@@ -191,12 +200,12 @@ namespace FunctionAppDemo1
                         // ==============================================
 
                         // Creating Sender and Client for the Topic
-                        ServiceBusClient client2 = new ServiceBusClient(topic_connection);
-                        ServiceBusSender sender2 = client2.CreateSender(topic_name);
+                        ServiceBusClient topicClient = new ServiceBusClient(topicConnection);
+                        ServiceBusSender topicSender = topicClient.CreateSender(topic_name);
 
                         // /*
                         // Create a message batch to store messages
-                        using ServiceBusMessageBatch messageBatch = await sender2.CreateMessageBatchAsync();
+                        using ServiceBusMessageBatch messageBatch = await topicSender.CreateMessageBatchAsync();
                         int nMessage = 5;
                         for (int i = 1; i <= nMessage; i++)
                         {
@@ -205,34 +214,35 @@ namespace FunctionAppDemo1
                         }
 
                         // Send the batch of messages to service bus topic asynchronously
-                        await sender2.SendMessagesAsync(messageBatch);
+                        await topicSender.SendMessagesAsync(messageBatch);
                         Console.WriteLine("Topic Messages Sent : ");
                         log.LogInformation($"Batch of {nMessage} messages has been published");
 
                         // Free the resources, perform cleanup
-                        
-                        await sender2.DisposeAsync();
-                        // */
+                        await topicClient.DisposeAsync();
+                        await topicSender.DisposeAsync();
 
+                        break;
+                    }
+                    
+                case "topicReceive":
+                    {
                         // ================================================
                         // RECEIVING MESSAGE FROM THE TOPIC => SUBSCRIPTION
                         // ================================================
 
-                        /*
-                        SubscriptionClient subscriptionClient = new SubscriptionClient(topic_connection,
+                        
+                        SubscriptionClient subscriptionClient = new SubscriptionClient(topicConnection,
                             topic_name,
-                            subscription_name,
+                            subscriptionName,
                             // ReceiveMode.PeekLock
                             ReceiveMode.ReceiveAndDelete
                             );
-
                         subscriptionClient.RegisterMessageHandler((message, canceltoken) =>
                         {
                             var b = message.Body;  // Gives Byte object
-
                             // Convert Byte Object to String
                             string ms = System.Text.Encoding.UTF8.GetString(b);
-
                             Console.WriteLine("Message Received : " + ms);
                             return Task.CompletedTask;
                         },
@@ -241,13 +251,13 @@ namespace FunctionAppDemo1
                             Console.WriteLine("Exception Occurred : " + exceptionArgs.Exception.ToString());
                             return Task.CompletedTask;
                         });
-
                         Telemetry.TrackTrace("Messages Successfully Received by Subscription from the Topic");
-                        */
+                        
 
                         break;
 
                     }
+
                 default:
                     {
                         Telemetry.TrackTrace("No Type has been given for sending / receiving.");
