@@ -272,8 +272,8 @@ namespace FunctionAppDemo1
                             topicConnection,
                             topicName,
                             subscriptionName,
-                            // ReceiveMode.PeekLock
-                            ReceiveMode.ReceiveAndDelete
+                            ReceiveMode.PeekLock
+                            // ReceiveMode.ReceiveAndDelete
                             );
 
 
