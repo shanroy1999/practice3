@@ -1,0 +1,13 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\FunctionAppDemo1",
+    "\\FunctionAppDemo1\\AzureServiceQueue",
+    "\\FunctionAppDemo1\\AzureServiceQueue\\bin",
+    "\\FunctionAppDemo1\\AzureServiceQueue\\obj",
+    "\\FunctionAppDemo1\\FunctionAppDemo1",
+    "\\FunctionAppDemo1\\FunctionAppDemo1\\Properties"
+  ],
+  "SelectedNode": "\\FunctionAppDemo1\\FunctionAppDemo1\\FunctionAppDemo1.csproj",
+  "PreviewInSolutionExplorer": false
+}

@@ -11,6 +11,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AzureSendMessage", "..\..\.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReceiveDeadLetter", "..\..\..\..\..\source\repos\AzureServiceQueue\ReceiveDeadLetter\ReceiveDeadLetter.csproj", "{9245177E-ECB9-415C-BDF7-A11FC8A0EA74}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebApplication1", "..\..\..\..\..\source\repos\WebApplication1\WebApplication1\WebApplication1.csproj", "{770934DF-F41A-40FA-81E0-55F16BCB6A5E}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlotWebApplication", "..\..\..\SlotWebApplication\SlotWebApplication\SlotWebApplication.csproj", "{355820AC-AB04-4A43-94FF-1C1E25FCA65E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +37,14 @@ Global
 		{9245177E-ECB9-415C-BDF7-A11FC8A0EA74}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9245177E-ECB9-415C-BDF7-A11FC8A0EA74}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9245177E-ECB9-415C-BDF7-A11FC8A0EA74}.Release|Any CPU.Build.0 = Release|Any CPU
+		{770934DF-F41A-40FA-81E0-55F16BCB6A5E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{770934DF-F41A-40FA-81E0-55F16BCB6A5E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{770934DF-F41A-40FA-81E0-55F16BCB6A5E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{770934DF-F41A-40FA-81E0-55F16BCB6A5E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{355820AC-AB04-4A43-94FF-1C1E25FCA65E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{355820AC-AB04-4A43-94FF-1C1E25FCA65E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{355820AC-AB04-4A43-94FF-1C1E25FCA65E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{355820AC-AB04-4A43-94FF-1C1E25FCA65E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
