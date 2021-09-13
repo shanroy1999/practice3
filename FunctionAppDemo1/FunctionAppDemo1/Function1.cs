@@ -45,7 +45,7 @@ namespace FunctionAppDemo1
         static string queueName = "appqueue";
 
         // Defining the topic Connection String and the name taken from Azure Portal
-        static string topicConnection = "Endpoint=sb://shanbus.servicebus.windows.net/;SharedAccessKeyName=sendMessage;SharedAccessKey=HfnWz82NE+UNv7QbzCjPZePX/lKr8zzrAYW2YYWGzxc=;";
+        static string topicConnection = "Endpoint=sb://shanbus.servicebus.windows.net/;SharedAccessKeyName=sendMessage;SharedAccessKey=aJoZA4IuaNpJEolnGV3v1pKKVteZ+wY/RWF7w0m/SsU=;";
         static string topicName = "apptopic";
 
         // defining the subscriptionName to be created for the topic
@@ -251,29 +251,51 @@ namespace FunctionAppDemo1
 
                         // Send the batch of messages to service bus topic asynchronously
                         await topicSender.SendMessagesAsync(messageBatch);
-                        Console.WriteLine("Topic Messages Sent : ");
-                        log.LogInformation($"Batch of {numOfMessages} messages has been published");
+                        Telemetry.TrackTrace("Topic Messages Sent : ");
+                        Telemetry.TrackTrace($"Batch of {numOfMessages} messages has been published");
 
-                        // Free the resources, perform cleanup
                         await topicClient.DisposeAsync();
-                        await topicSender.DisposeAsync();
+                        await topicClient.DisposeAsync();
 
                         break;
                     }
                     
                 case "topicReceive":
                     {
+
                         // ================================================
                         // RECEIVING MESSAGE FROM THE TOPIC => SUBSCRIPTION
                         // ================================================
 
+                        ServiceBusClient topicClient = new ServiceBusClient(topicConnection);
+                        ServiceBusReceiver topicReceiver = topicClient.CreateReceiver(
+                            topicName, subscriptionName, new ServiceBusReceiverOptions()
+                            {
+                                ReceiveMode = ServiceBusReceiveMode.ReceiveAndDelete
+                            });
+                        int numOfMessages = 5;
+                        var messages_received = topicReceiver.ReceiveMessagesAsync(numOfMessages).GetAwaiter().GetResult();
+                        log.LogInformation("Topic Messages Received");
+
+                        foreach (var message in messages_received)
+                        {
+                            log.LogInformation(message.SequenceNumber.ToString());
+                            log.LogInformation(message.Body.ToString());
+                            Telemetry.TrackTrace($"Receiving messages from topic {topicName}");
+                            Telemetry.TrackTrace($"Message Sequence {message.SequenceNumber} : {message.Body.ToString()}");
+                        }
+
+                        await topicClient.DisposeAsync();
+                        await topicReceiver.DisposeAsync();
+
+                        /*
                         // Create a Subscription Client for receiving messages from topic
-                        SubscriptionClient subscriptionClient = new SubscriptionClient(
+                        ISubscriptionClient subscriptionClient = new SubscriptionClient(
                             topicConnection,
                             topicName,
                             subscriptionName,
-                            ReceiveMode.PeekLock
-                            // ReceiveMode.ReceiveAndDelete
+                            // ReceiveMode.PeekLock
+                            ReceiveMode.ReceiveAndDelete
                             );
 
 
@@ -283,18 +305,19 @@ namespace FunctionAppDemo1
 
                             // Convert Byte Object to String
                             string subscriberMessage = System.Text.Encoding.UTF8.GetString(b);
-                            Console.WriteLine("Message Received : " + subscriberMessage);
+                            Telemetry.TrackTrace("Message Received : " + subscriberMessage);
 
                             // return the task that has been completed successfully
                             return Task.CompletedTask;
                         },
                         (exceptionArgs) =>
                         {
-                            Console.WriteLine("Exception Occurred : " + exceptionArgs.Exception.ToString());
+                            Telemetry.TrackTrace("Exception Occurred : " + exceptionArgs.Exception.ToString());
                             return Task.CompletedTask;
                         });
                         Telemetry.TrackTrace("Messages Successfully Received by Subscription from the Topic");
-                        
+                        */
+
                         break;
 
                     }
