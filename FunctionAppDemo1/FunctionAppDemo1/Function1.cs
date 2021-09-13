@@ -176,7 +176,6 @@ namespace FunctionAppDemo1
                         /*
                         ServiceBusClient queueClient = new ServiceBusClient(globalConnectionString);
                         ServiceBusSender queueSender = queueClient.CreateSender(queueName);
-
                         using ServiceBusMessageBatch messageBatch = await queueSender.CreateMessageBatchAsync();
                         for(int i=0; i<5; i++)
                         {
@@ -186,13 +185,11 @@ namespace FunctionAppDemo1
                                 throw new Exception($"The Queue message Message {i} is too large to fit in the batch.");
                             };
                         }
-
                         try
                         {
                             await queueSender.SendMessagesAsync(messageBatch);
                             Telemetry.TrackTrace($"A batch of messages has been published to the queue");
                         }
-
                         finally
                         {
                             await queueSender.DisposeAsync();
@@ -217,7 +214,7 @@ namespace FunctionAppDemo1
                         // ReceiveAndDelete - Deletes the messages as soon as they are received
                         // ServiceBusReceiverOptions - configures the behaviour of ServiceBusReceiver
 
-                        
+
 
                         ServiceBusClient queueClient = new ServiceBusClient(globalConnectionString);
                         ServiceBusReceiver queueReceiver = queueClient.CreateReceiver(queueName,
@@ -279,7 +276,7 @@ namespace FunctionAppDemo1
 
                         break;
                     }
-                    
+
                 case "topicReceive":
                     {
 
@@ -318,16 +315,12 @@ namespace FunctionAppDemo1
                             // ReceiveMode.PeekLock
                             ReceiveMode.ReceiveAndDelete
                             );
-
-
                         subscriptionClient.RegisterMessageHandler((subscriptionMessage, canceltoken) =>
                         {
                             var b = subscriptionMessage.Body;  // Gives Byte object
-
                             // Convert Byte Object to String
                             string subscriberMessage = System.Text.Encoding.UTF8.GetString(b);
                             Telemetry.TrackTrace("Message Received : " + subscriberMessage);
-
                             // return the task that has been completed successfully
                             return Task.CompletedTask;
                         },
