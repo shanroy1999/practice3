@@ -144,12 +144,11 @@ namespace FunctionAppDemo1
                             // Add a new message at the back of the queue
                             queueSender.SendMessageAsync(serviceBusMsg).GetAwaiter().GetResult();
 
-                            log.LogInformation($"Message Body : {serviceBusMsg.Body.ToString()}");
+                            log.LogInformation($"Sending Message to the Queue {queueName}");
                             Telemetry.TrackTrace($"Sending Message to the Queue {queueName}");
 
-                            // TrackEvent => Returns a Telemetry to track custom events in diagnostic search
-                            //               & analytics portal
-                            Telemetry.TrackEvent($"Message Body : {serviceBusMsg.Body.ToString()}");
+                            log.LogInformation($"Message Body : {serviceBusMsg.Body.ToString()}");
+                            Telemetry.TrackTrace($"Message Body : {serviceBusMsg.Body.ToString()}");
                         }
 
                         // Dispose the queueSender resource.
@@ -160,24 +159,24 @@ namespace FunctionAppDemo1
                         // =========================================================
 
                         // Check the number of messages in the queue
-                        var management_client = new ManagementClient(queueConnection);
-                        var queueInfo = await management_client.GetQueueRuntimeInfoAsync(queueName);
+                        var managementClient = new ManagementClient(queueConnection);
+                        var queueInfo = await managementClient.GetQueueRuntimeInfoAsync(queueName);
                         var messageCount = queueInfo.MessageCount;
                         var countMetric = new MetricTelemetry();
                         countMetric.Name = "queueLength";
                         countMetric.Sum = messageCount;
-                        Telemetry.TrackEvent($"Queue Length : {countMetric.Sum.ToString()}");
+                        Telemetry.TrackTrace($"Queue Length : {countMetric.Sum.ToString()}");
 
                         // Check the size of the queue in Bytes
                         var queueSize = queueInfo.SizeInBytes;
                         var sizeMetric = new MetricTelemetry();
                         sizeMetric.Name = "queueSize";
                         sizeMetric.Sum = queueSize;
-                        Telemetry.TrackEvent($"Queue Size : {sizeMetric.Sum.ToString()}");
+                        Telemetry.TrackTrace($"Queue Size : {sizeMetric.Sum.ToString()}");
 
                         string funcSuccessMessage = "Function Successfully Executed. Message recorded in Service Bus Queue";
                         log.LogInformation(funcSuccessMessage);
-                        Telemetry.TrackEvent(funcSuccessMessage);
+                        Telemetry.TrackTrace(funcSuccessMessage);
 
                         break;
                     }
@@ -254,8 +253,7 @@ namespace FunctionAppDemo1
                         Telemetry.TrackTrace("Topic Messages Sent : ");
                         Telemetry.TrackTrace($"Batch of {numOfMessages} messages has been published");
 
-                        await topicClient.DisposeAsync();
-                        await topicClient.DisposeAsync();
+                        await topicSender.DisposeAsync();
 
                         break;
                     }
