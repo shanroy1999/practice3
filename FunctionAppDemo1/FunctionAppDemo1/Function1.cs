@@ -42,7 +42,7 @@ namespace FunctionAppDemo1
 
         // Defining the queue Connection String and the name taken from Azure Portal
         // static string queueConnection = "Endpoint=sb://shanbus.servicebus.windows.net/;SharedAccessKeyName=sendMessage;SharedAccessKey=LpfpuAzei9mGe/2BLdMvkoEsrH64xVOJkl5Vhxy8Aas=;";
-        static string queueName = "appqueue";
+        static string queueName = "functionqueue";
 
         // Defining the topic Connection String and the name taken from Azure Portal
         // static string topicConnection = "Endpoint=sb://shanbus.servicebus.windows.net/;SharedAccessKeyName=sendMessage;SharedAccessKey=aJoZA4IuaNpJEolnGV3v1pKKVteZ+wY/RWF7w0m/SsU=;";
@@ -99,13 +99,6 @@ namespace FunctionAppDemo1
             }
             */
 
-            // Function looks for name query parameter either in query string or in body of request.
-            string name = req.Query["name"];
-
-            // Read the requestBody till end and return it as string => Asynchronous read operation
-            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            Console.WriteLine(requestBody);
-
             // Input type from the user for where to send / receive message to / from
             string type = req.Query["type"];
 
@@ -113,7 +106,7 @@ namespace FunctionAppDemo1
             {
                 case "queueSend":
                     {
-                        /*
+                        // /*
                         // Create a list for Messages
                         List<MessageContent> messagesList = new List<MessageContent>()
                         {
@@ -134,9 +127,7 @@ namespace FunctionAppDemo1
                         // Create sender to send the message to the queue
                         ServiceBusSender queueSender = queueClient.CreateSender(queueName);
 
-                        Console.WriteLine("Queue Messages Sent : ");
-
-                        foreach (var m in messagesList)
+                        foreach (MessageContent m in messagesList)
                         {
                             // Convert the MessageContent object to ServiceBusMessage
                             ServiceBusMessage serviceBusMsg = new ServiceBusMessage(m.ToString());
@@ -151,8 +142,11 @@ namespace FunctionAppDemo1
                             Telemetry.TrackTrace($"Sending Message to the Queue {queueName}");
 
                             // log.LogInformation($"Message Body : {serviceBusMsg.Body.ToString()}");
-                            Telemetry.TrackTrace($"Message Body : {serviceBusMsg.Body.ToString()}");
+                            Telemetry.TrackTrace($"Message Body : {serviceBusMsg.Body}");
                         }
+
+                        await queueSender.DisposeAsync();
+                        Telemetry.TrackEvent("All messages have been sent to the queue");
 
                         // ========================================================
                         // ADD TELEMETRY TO TRACK THE EVENTS FOR SERVICE BUS QUEUE
@@ -177,8 +171,9 @@ namespace FunctionAppDemo1
                         string funcSuccessMessage = "Function Successfully Executed. Message recorded in Service Bus Queue";
                         // log.LogInformation(funcSuccessMessage);
                         Telemetry.TrackEvent(funcSuccessMessage);
-                        */
+                        // */
 
+                        /*
                         ServiceBusClient queueClient = new ServiceBusClient(globalConnectionString);
                         ServiceBusSender queueSender = queueClient.CreateSender(queueName);
 
@@ -188,7 +183,7 @@ namespace FunctionAppDemo1
                             Telemetry.TrackTrace($"Sending message to the Queue {queueName}");
                             if (!messageBatch.TryAddMessage(new ServiceBusMessage($"Message number {i}")))
                             {
-                                throw new Exception($"The Queue message Message {name} {i} is too large to fit in the batch.");
+                                throw new Exception($"The Queue message Message {i} is too large to fit in the batch.");
                             };
                         }
 
@@ -203,6 +198,7 @@ namespace FunctionAppDemo1
                             await queueSender.DisposeAsync();
                             await queueClient.DisposeAsync();
                         }
+                        */
 
                         break;
                     }
@@ -235,15 +231,16 @@ namespace FunctionAppDemo1
                         // in the configured received mode.
                         var messagesReceived = queueReceiver.ReceiveMessagesAsync(2).GetAwaiter().GetResult();
 
-                        Console.WriteLine("Queue Messages Received : ");
-
                         // Write the received message body on the console
                         foreach (var message in messagesReceived)
                         {
-                            log.LogInformation(message.SequenceNumber.ToString());
-                            log.LogInformation(message.Body.ToString());
-                            Telemetry.TrackTrace($"Receiving Message from the Queue {queueName}");
+                            log.LogInformation($"Message Sequence : {message.SequenceNumber}");
+                            log.LogInformation($"Message Body : {message.Body}");
+                            Telemetry.TrackEvent($"Receiving Message from the Queue {queueName}");
                         }
+
+                        await queueClient.DisposeAsync();
+                        await queueReceiver.DisposeAsync();
 
                         Telemetry.TrackTrace("Messages from Queue successfully received.");
 
@@ -275,8 +272,8 @@ namespace FunctionAppDemo1
 
                         // Send the batch of messages to service bus topic asynchronously
                         await topicSender.SendMessagesAsync(messageBatch);
-                        Telemetry.TrackTrace("Topic Messages Sent : ");
-                        Telemetry.TrackTrace($"Batch of {numOfMessages} messages has been published");
+                        Telemetry.TrackTrace("All Messages have been sent to the topic");
+                        Telemetry.TrackTrace($"Batch of {numOfMessages} messages has been published to the topic");
 
                         await topicSender.DisposeAsync();
 
@@ -298,7 +295,6 @@ namespace FunctionAppDemo1
                             });
                         int numOfMessages = 5;
                         var messages_received = topicReceiver.ReceiveMessagesAsync(numOfMessages).GetAwaiter().GetResult();
-                        log.LogInformation("Topic Messages Received");
 
                         foreach (var message in messages_received)
                         {
@@ -308,12 +304,14 @@ namespace FunctionAppDemo1
                             Telemetry.TrackTrace($"Message Sequence {message.SequenceNumber} : {message.Body.ToString()}");
                         }
 
+                        log.LogInformation("Topic Messages Received Successfully");
+
                         await topicClient.DisposeAsync();
                         await topicReceiver.DisposeAsync();
 
                         /*
                         // Create a Subscription Client for receiving messages from topic
-                        ISubscriptionClient subscriptionClient = new SubscriptionClient(
+                        SubscriptionClient subscriptionClient = new SubscriptionClient(
                             topicConnection,
                             topicName,
                             subscriptionName,
@@ -356,6 +354,14 @@ namespace FunctionAppDemo1
             // Deserialization - takes data from file and builds it into an object
             // dynamic - avoids compile-time checking
             // compiler - compiles dynamic types into object types mostly
+
+            // Function looks for name query parameter either in query string or in body of request.
+            string name = req.Query["name"];
+
+            // Read the requestBody till end and return it as string => Asynchronous read operation
+            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+            Console.WriteLine(requestBody);
+
             dynamic data = JsonConvert.DeserializeObject(requestBody);
             name ??= data?.name;
 
