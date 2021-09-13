@@ -41,12 +41,14 @@ namespace FunctionAppDemo1
         }
 
         // Defining the queue Connection String and the name taken from Azure Portal
-        static string queueConnection = "Endpoint=sb://shanbus.servicebus.windows.net/;SharedAccessKeyName=policy1;SharedAccessKey=05vDGWYEyLO0St4xcAvZIBY13yaZ5mSb3kO2uJnUJhA=;";
+        // static string queueConnection = "Endpoint=sb://shanbus.servicebus.windows.net/;SharedAccessKeyName=sendMessage;SharedAccessKey=LpfpuAzei9mGe/2BLdMvkoEsrH64xVOJkl5Vhxy8Aas=;";
         static string queueName = "appqueue";
 
         // Defining the topic Connection String and the name taken from Azure Portal
-        static string topicConnection = "Endpoint=sb://shanbus.servicebus.windows.net/;SharedAccessKeyName=sendMessage;SharedAccessKey=aJoZA4IuaNpJEolnGV3v1pKKVteZ+wY/RWF7w0m/SsU=;";
+        // static string topicConnection = "Endpoint=sb://shanbus.servicebus.windows.net/;SharedAccessKeyName=sendMessage;SharedAccessKey=aJoZA4IuaNpJEolnGV3v1pKKVteZ+wY/RWF7w0m/SsU=;";
         static string topicName = "apptopic";
+
+        static string globalConnectionString = "Endpoint=sb://shanbus.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=Z5u6EnhAVNLJzqWmlSvBCY+CUFZm5EJPDLVG/ocPKvA=";
 
         // defining the subscriptionName to be created for the topic
         static string subscriptionName = "S1";
@@ -111,6 +113,7 @@ namespace FunctionAppDemo1
             {
                 case "queueSend":
                     {
+                        /*
                         // Create a list for Messages
                         List<MessageContent> messagesList = new List<MessageContent>()
                         {
@@ -126,17 +129,17 @@ namespace FunctionAppDemo1
                         // ===================================================
 
                         // create Service Bus Client for sending and processing of messages
-                        ServiceBusClient queueClient = new ServiceBusClient(queueConnection);
+                        ServiceBusClient queueClient = new ServiceBusClient(globalConnectionString);
 
                         // Create sender to send the message to the queue
                         ServiceBusSender queueSender = queueClient.CreateSender(queueName);
 
                         Console.WriteLine("Queue Messages Sent : ");
 
-                        foreach (MessageContent mContent in messagesList)
+                        foreach (var m in messagesList)
                         {
                             // Convert the MessageContent object to ServiceBusMessage
-                            ServiceBusMessage serviceBusMsg = new ServiceBusMessage(mContent.ToString());
+                            ServiceBusMessage serviceBusMsg = new ServiceBusMessage(m.ToString());
 
                             // set the content type of the service bus message
                             serviceBusMsg.ContentType = "application/json";
@@ -144,39 +147,62 @@ namespace FunctionAppDemo1
                             // Add a new message at the back of the queue
                             queueSender.SendMessageAsync(serviceBusMsg).GetAwaiter().GetResult();
 
-                            log.LogInformation($"Sending Message to the Queue {queueName}");
+                            // log.LogInformation($"Sending Message to the Queue {queueName}");
                             Telemetry.TrackTrace($"Sending Message to the Queue {queueName}");
 
-                            log.LogInformation($"Message Body : {serviceBusMsg.Body.ToString()}");
+                            // log.LogInformation($"Message Body : {serviceBusMsg.Body.ToString()}");
                             Telemetry.TrackTrace($"Message Body : {serviceBusMsg.Body.ToString()}");
                         }
-
-                        // Dispose the queueSender resource.
-                        await queueSender.DisposeAsync();
 
                         // ========================================================
                         // ADD TELEMETRY TO TRACK THE EVENTS FOR SERVICE BUS QUEUE
                         // =========================================================
 
                         // Check the number of messages in the queue
-                        var managementClient = new ManagementClient(queueConnection);
+                        var managementClient = new ManagementClient(globalConnectionString);
                         var queueInfo = await managementClient.GetQueueRuntimeInfoAsync(queueName);
                         var messageCount = queueInfo.MessageCount;
                         var countMetric = new MetricTelemetry();
                         countMetric.Name = "queueLength";
                         countMetric.Sum = messageCount;
-                        Telemetry.TrackTrace($"Queue Length : {countMetric.Sum.ToString()}");
+                        Telemetry.TrackEvent($"Queue Length : {countMetric.Sum.ToString()}");
 
                         // Check the size of the queue in Bytes
                         var queueSize = queueInfo.SizeInBytes;
                         var sizeMetric = new MetricTelemetry();
                         sizeMetric.Name = "queueSize";
                         sizeMetric.Sum = queueSize;
-                        Telemetry.TrackTrace($"Queue Size : {sizeMetric.Sum.ToString()}");
+                        Telemetry.TrackEvent($"Queue Size : {sizeMetric.Sum.ToString()}");
 
                         string funcSuccessMessage = "Function Successfully Executed. Message recorded in Service Bus Queue";
-                        log.LogInformation(funcSuccessMessage);
-                        Telemetry.TrackTrace(funcSuccessMessage);
+                        // log.LogInformation(funcSuccessMessage);
+                        Telemetry.TrackEvent(funcSuccessMessage);
+                        */
+
+                        ServiceBusClient queueClient = new ServiceBusClient(globalConnectionString);
+                        ServiceBusSender queueSender = queueClient.CreateSender(queueName);
+
+                        using ServiceBusMessageBatch messageBatch = await queueSender.CreateMessageBatchAsync();
+                        for(int i=0; i<5; i++)
+                        {
+                            Telemetry.TrackTrace($"Sending message to the Queue {queueName}");
+                            if (!messageBatch.TryAddMessage(new ServiceBusMessage($"Message number {i}")))
+                            {
+                                throw new Exception($"The Queue message Message {name} {i} is too large to fit in the batch.");
+                            };
+                        }
+
+                        try
+                        {
+                            await queueSender.SendMessagesAsync(messageBatch);
+                            Console.WriteLine($"A batch of messages has been published to the queue");
+                        }
+
+                        finally
+                        {
+                            await queueSender.DisposeAsync();
+                            await queueClient.DisposeAsync();
+                        }
 
                         break;
                     }
@@ -195,7 +221,9 @@ namespace FunctionAppDemo1
                         // ReceiveAndDelete - Deletes the messages as soon as they are received
                         // ServiceBusReceiverOptions - configures the behaviour of ServiceBusReceiver
 
-                        ServiceBusClient queueClient = new ServiceBusClient(queueConnection);
+                        
+
+                        ServiceBusClient queueClient = new ServiceBusClient(globalConnectionString);
                         ServiceBusReceiver queueReceiver = queueClient.CreateReceiver(queueName,
                             new ServiceBusReceiverOptions()
                             {
@@ -217,10 +245,7 @@ namespace FunctionAppDemo1
                             Telemetry.TrackTrace($"Receiving Message from the Queue {queueName}");
                         }
 
-                        // Resource Cleanup
-                        // await => non-blocking way to start a task then continues execution when task complete
-                        await queueClient.DisposeAsync();
-                        await queueReceiver.DisposeAsync();
+                        Telemetry.TrackTrace("Messages from Queue successfully received.");
 
                         break;
                     }
@@ -233,7 +258,7 @@ namespace FunctionAppDemo1
                         // ==============================================
 
                         // Creating Sender and Client for the Topic
-                        ServiceBusClient topicClient = new ServiceBusClient(topicConnection);
+                        ServiceBusClient topicClient = new ServiceBusClient(globalConnectionString);
                         ServiceBusSender topicSender = topicClient.CreateSender(topicName);
 
                         // /*
@@ -265,7 +290,7 @@ namespace FunctionAppDemo1
                         // RECEIVING MESSAGE FROM THE TOPIC => SUBSCRIPTION
                         // ================================================
 
-                        ServiceBusClient topicClient = new ServiceBusClient(topicConnection);
+                        ServiceBusClient topicClient = new ServiceBusClient(globalConnectionString);
                         ServiceBusReceiver topicReceiver = topicClient.CreateReceiver(
                             topicName, subscriptionName, new ServiceBusReceiverOptions()
                             {
@@ -277,8 +302,8 @@ namespace FunctionAppDemo1
 
                         foreach (var message in messages_received)
                         {
-                            log.LogInformation(message.SequenceNumber.ToString());
-                            log.LogInformation(message.Body.ToString());
+                            // log.LogInformation(message.SequenceNumber.ToString());
+                            // log.LogInformation(message.Body.ToString());
                             Telemetry.TrackTrace($"Receiving messages from topic {topicName}");
                             Telemetry.TrackTrace($"Message Sequence {message.SequenceNumber} : {message.Body.ToString()}");
                         }
