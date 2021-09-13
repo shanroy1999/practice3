@@ -195,7 +195,7 @@ namespace FunctionAppDemo1
                         try
                         {
                             await queueSender.SendMessagesAsync(messageBatch);
-                            Console.WriteLine($"A batch of messages has been published to the queue");
+                            Telemetry.TrackTrace($"A batch of messages has been published to the queue");
                         }
 
                         finally
