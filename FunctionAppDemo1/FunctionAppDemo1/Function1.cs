@@ -4,7 +4,6 @@ using Microsoft.ApplicationInsights.AspNetCore.Extensions;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.ServiceBus;
 using Microsoft.Azure.ServiceBus.Management;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
@@ -121,56 +120,14 @@ namespace FunctionAppDemo1
                         // SEND MESSAGE TO SERVICE BUS QUEUE
                         // ===================================================
 
-                        // create Service Bus Client for sending and processing of messages
-                        ServiceBusClient queueClient = new ServiceBusClient(globalConnectionString);
+                        ServiceBusSender queueSender = InitiateQueueSender();
 
-                        // Create sender to send the message to the queue
-                        ServiceBusSender queueSender = queueClient.CreateSender(queueName);
-
-                        foreach (MessageContent m in messagesList)
-                        {
-                            // Convert the MessageContent object to ServiceBusMessage
-                            ServiceBusMessage serviceBusMsg = new ServiceBusMessage(m.ToString());
-
-                            // set the content type of the service bus message
-                            serviceBusMsg.ContentType = "application/json";
-
-                            // Add a new message at the back of the queue
-                            queueSender.SendMessageAsync(serviceBusMsg).GetAwaiter().GetResult();
-
-                            // log.LogInformation($"Sending Message to the Queue {queueName}");
-                            Telemetry.TrackTrace($"Sending Message to the Queue {queueName}");
-
-                            // log.LogInformation($"Message Body : {serviceBusMsg.Body.ToString()}");
-                            Telemetry.TrackTrace($"Message Body : {serviceBusMsg.Body}");
-                        }
+                        sendMessageToQueue(messagesList, queueSender);
 
                         await queueSender.DisposeAsync();
                         Telemetry.TrackEvent("All messages have been sent to the queue");
 
-                        // ========================================================
-                        // ADD TELEMETRY TO TRACK THE EVENTS FOR SERVICE BUS QUEUE
-                        // =========================================================
-
-                        // Check the number of messages in the queue
-                        var managementClient = new ManagementClient(globalConnectionString);
-                        var queueInfo = await managementClient.GetQueueRuntimeInfoAsync(queueName);
-                        var messageCount = queueInfo.MessageCount;
-                        var countMetric = new MetricTelemetry();
-                        countMetric.Name = "queueLength";
-                        countMetric.Sum = messageCount;
-                        Telemetry.TrackEvent($"Queue Length : {countMetric.Sum.ToString()}");
-
-                        // Check the size of the queue in Bytes
-                        var queueSize = queueInfo.SizeInBytes;
-                        var sizeMetric = new MetricTelemetry();
-                        sizeMetric.Name = "queueSize";
-                        sizeMetric.Sum = queueSize;
-                        Telemetry.TrackEvent($"Queue Size : {sizeMetric.Sum.ToString()}");
-
-                        string funcSuccessMessage = "Function Successfully Executed. Message recorded in Service Bus Queue";
-                        // log.LogInformation(funcSuccessMessage);
-                        Telemetry.TrackEvent(funcSuccessMessage);
+                        await addQueueTelemetry();
                         // */
 
                         /*
@@ -202,7 +159,6 @@ namespace FunctionAppDemo1
 
                 case "queueReceive":
                     {
-
                         // ========================================================
                         // RECEIVE MESSAGE FROM SERVICE BUS QUEUE
                         // ========================================================
@@ -216,17 +172,11 @@ namespace FunctionAppDemo1
 
 
 
-                        ServiceBusClient queueClient = new ServiceBusClient(globalConnectionString);
-                        ServiceBusReceiver queueReceiver = queueClient.CreateReceiver(queueName,
-                            new ServiceBusReceiverOptions()
-                            {
-                                // ReceiveMode = ServiceBusReceiveMode.PeekLock
-                                ReceiveMode = ServiceBusReceiveMode.ReceiveAndDelete
-                            });
+                        ServiceBusClient queueClient;
+                        ServiceBusReceiver queueReceiver;
+                        InitiateQueueReceiver(out queueClient, out queueReceiver);
 
-                        // Receive a ServiceBusReceivedMessage object from the receiver object
-                        // in the configured received mode.
-                        var messagesReceived = queueReceiver.ReceiveMessagesAsync(2).GetAwaiter().GetResult();
+                        IReadOnlyList<ServiceBusReceivedMessage> messagesReceived = receiveQueueMessages(queueReceiver);
 
                         // Write the received message body on the console
                         foreach (var message in messagesReceived)
@@ -246,29 +196,19 @@ namespace FunctionAppDemo1
 
                 case "topicSend":
                     {
-
                         // ==============================================
                         // FOR SENDING TO TOPIC => PUBLISHING TO TOPIC
                         // ==============================================
 
                         // Creating Sender and Client for the Topic
-                        ServiceBusClient topicClient = new ServiceBusClient(globalConnectionString);
-                        ServiceBusSender topicSender = topicClient.CreateSender(topicName);
+                        ServiceBusSender topicSender = InitiateTopicSender();
 
                         // /*
                         // Create a message batch to store messages
-                        using ServiceBusMessageBatch messageBatch = await topicSender.CreateMessageBatchAsync();
+                        ServiceBusMessageBatch messageBatch = await InitiateMessageBatch(topicSender);
                         int numOfMessages = 5;
-                        for (int i = 1; i <= numOfMessages; i++)
-                        {
-                            Telemetry.TrackTrace($"Sending message to the Topic {topicName}");
+                        await SendMessageToTopic(topicSender, messageBatch, numOfMessages);
 
-                            // TryAddMessage => tries adding message to the batch ensuring size of batch <= max
-                            messageBatch.TryAddMessage(new ServiceBusMessage($"Message number {i}"));
-                        }
-
-                        // Send the batch of messages to service bus topic asynchronously
-                        await topicSender.SendMessagesAsync(messageBatch);
                         Telemetry.TrackTrace("All Messages have been sent to the topic");
                         Telemetry.TrackTrace($"Batch of {numOfMessages} messages has been published to the topic");
 
@@ -279,29 +219,15 @@ namespace FunctionAppDemo1
 
                 case "topicReceive":
                     {
-
                         // ================================================
                         // RECEIVING MESSAGE FROM THE TOPIC => SUBSCRIPTION
                         // ================================================
 
-                        ServiceBusClient topicClient = new ServiceBusClient(globalConnectionString);
-                        ServiceBusReceiver topicReceiver = topicClient.CreateReceiver(
-                            topicName, subscriptionName, new ServiceBusReceiverOptions()
-                            {
-                                ReceiveMode = ServiceBusReceiveMode.ReceiveAndDelete
-                            });
-                        int numOfMessages = 5;
-                        var messages_received = topicReceiver.ReceiveMessagesAsync(numOfMessages).GetAwaiter().GetResult();
+                        ServiceBusClient topicClient;
+                        ServiceBusReceiver topicReceiver;
 
-                        foreach (var message in messages_received)
-                        {
-                            // log.LogInformation(message.SequenceNumber.ToString());
-                            // log.LogInformation(message.Body.ToString());
-                            Telemetry.TrackTrace($"Receiving messages from topic {topicName}");
-                            Telemetry.TrackTrace($"Message Sequence {message.SequenceNumber} : {message.Body.ToString()}");
-                        }
-
-                        log.LogInformation("Topic Messages Received Successfully");
+                        InitiateTopicReceiver(out topicClient, out topicReceiver);
+                        ReceiveMessagesFromTopic(log, topicReceiver, 5);
 
                         await topicClient.DisposeAsync();
                         await topicReceiver.DisposeAsync();
@@ -343,21 +269,45 @@ namespace FunctionAppDemo1
                     }
             }
 
-            // Deserialize Json Object to .Net object
-            // Deserialization - takes data from file and builds it into an object
-            // dynamic - avoids compile-time checking
-            // compiler - compiles dynamic types into object types mostly
+            return await createCustomResponse(req);
+        }
 
-            // Function looks for name query parameter either in query string or in body of request.
+        private async Task SendMessageToTopic(ServiceBusSender topicSender, ServiceBusMessageBatch messageBatch, int numOfMessages)
+        {
+            for (int i = 1; i <= numOfMessages; i++)
+            {
+                Telemetry.TrackTrace($"Sending message to the Topic {topicName}");
+
+                // TryAddMessage => tries adding message to the batch ensuring size of batch <= max
+                messageBatch.TryAddMessage(new ServiceBusMessage($"Message number {i}"));
+            }
+
+            // Send the batch of messages to service bus topic asynchronously
+            await topicSender.SendMessagesAsync(messageBatch);
+        }
+
+        private static async Task<ServiceBusMessageBatch> InitiateMessageBatch(ServiceBusSender topicSender)
+        {
+            return await topicSender.CreateMessageBatchAsync();
+        }
+
+        private async Task<IActionResult> createCustomResponse(HttpRequest req)
+        {
             string name = req.Query["name"];
 
             // Read the requestBody till end and return it as string => Asynchronous read operation
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             Console.WriteLine(requestBody);
 
+            // Deserialize Json Object to .Net object
+            // Deserialization - takes data from file and builds it into an object
+            // dynamic - avoids compile-time checking
+            // compiler - compiles dynamic types into object types mostly
+
             dynamic data = JsonConvert.DeserializeObject(requestBody);
             name ??= data?.name;
 
+            // Function looks for name query parameter either in query string or in body of request.
             if (string.IsNullOrEmpty(name))
             {
                 string responseMessage = "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response.";
@@ -386,6 +336,117 @@ namespace FunctionAppDemo1
                 return await Task.FromResult(new OkObjectResult(responseMessage));
             }
         }
+
+        private void ReceiveMessagesFromTopic(ILogger log, ServiceBusReceiver topicReceiver, int numOfMessages)
+        {
+            var messages_received = topicReceiver.ReceiveMessagesAsync(numOfMessages).GetAwaiter().GetResult();
+
+            foreach (var message in messages_received)
+            {
+                // log.LogInformation(message.SequenceNumber.ToString());
+                // log.LogInformation(message.Body.ToString());
+                Telemetry.TrackTrace($"Receiving messages from topic {topicName}");
+                Telemetry.TrackTrace($"Message Sequence {message.SequenceNumber} : {message.Body.ToString()}");
+            }
+
+            log.LogInformation("Topic Messages Received Successfully");
+        }
+
+        private static ServiceBusSender InitiateTopicSender()
+        {
+            ServiceBusClient topicClient = new ServiceBusClient(globalConnectionString);
+            ServiceBusSender topicSender = topicClient.CreateSender(topicName);
+            return topicSender;
+        }
+
+        private static void InitiateTopicReceiver(out ServiceBusClient topicClient, out ServiceBusReceiver topicReceiver)
+        {
+            topicClient = new ServiceBusClient(globalConnectionString);
+            topicReceiver = topicClient.CreateReceiver(
+                topicName, subscriptionName, new ServiceBusReceiverOptions()
+                {
+                    ReceiveMode = ServiceBusReceiveMode.ReceiveAndDelete
+                });
+        }
+
+        private static IReadOnlyList<ServiceBusReceivedMessage> receiveQueueMessages(ServiceBusReceiver queueReceiver)
+        {
+            // Receive a ServiceBusReceivedMessage object from the receiver object
+            // in the configured received mode.
+            return queueReceiver.ReceiveMessagesAsync(2).GetAwaiter().GetResult();
+        }
+
+        private static void InitiateQueueReceiver(out ServiceBusClient queueClient, out ServiceBusReceiver queueReceiver)
+        {
+            queueClient = new ServiceBusClient(globalConnectionString);
+            queueReceiver = queueClient.CreateReceiver(queueName,
+                new ServiceBusReceiverOptions()
+                {
+                    // ReceiveMode = ServiceBusReceiveMode.PeekLock
+                    ReceiveMode = ServiceBusReceiveMode.ReceiveAndDelete
+                });
+        }
+
+        private async Task addQueueTelemetry()
+        {
+            // ========================================================
+            // ADD TELEMETRY TO TRACK THE EVENTS FOR SERVICE BUS QUEUE
+            // =========================================================
+
+            // Check the number of messages in the queue
+            var managementClient = new ManagementClient(globalConnectionString);
+            var queueInfo = await managementClient.GetQueueRuntimeInfoAsync(queueName);
+            var messageCount = queueInfo.MessageCount;
+            var countMetric = new MetricTelemetry();
+            countMetric.Name = "queueLength";
+            countMetric.Sum = messageCount;
+            Telemetry.TrackEvent($"Queue Length : {countMetric.Sum.ToString()}");
+
+            // Check the size of the queue in Bytes
+            var queueSize = queueInfo.SizeInBytes;
+            var sizeMetric = new MetricTelemetry();
+            sizeMetric.Name = "queueSize";
+            sizeMetric.Sum = queueSize;
+            Telemetry.TrackEvent($"Queue Size : {sizeMetric.Sum.ToString()}");
+
+            string funcSuccessMessage = "Function Successfully Executed. Message recorded in Service Bus Queue";
+            // log.LogInformation(funcSuccessMessage);
+            Telemetry.TrackEvent(funcSuccessMessage);
+        }
+
+        private void sendMessageToQueue(List<MessageContent> messagesList, ServiceBusSender queueSender)
+        {
+            foreach (MessageContent m in messagesList)
+            {
+                // Convert the MessageContent object to ServiceBusMessage
+                ServiceBusMessage serviceBusMsg = new ServiceBusMessage(m.ToString());
+
+                // set the content type of the service bus message
+                //
+                serviceBusMsg.ContentType = "application/json";
+                //
+
+                // Add a new message at the back of the queue
+                queueSender.SendMessageAsync(serviceBusMsg).GetAwaiter().GetResult();
+
+                // log.LogInformation($"Sending Message to the Queue {queueName}");
+                Telemetry.TrackTrace($"Sending Message to the Queue {queueName}");
+
+                // log.LogInformation($"Message Body : {serviceBusMsg.Body.ToString()}");
+                Telemetry.TrackTrace($"Message Body : {serviceBusMsg.Body}");
+            }
+        }
+
+        private static ServiceBusSender InitiateQueueSender()
+        {
+            // create Service Bus Client for sending and processing of messages
+            ServiceBusClient queueClient = new ServiceBusClient(globalConnectionString);
+
+            // Create sender to send the message to the queue
+            ServiceBusSender queueSender = queueClient.CreateSender(queueName);
+            return queueSender;
+        }
+
 
         /*
         public void ThrowException()
