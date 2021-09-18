@@ -262,6 +262,13 @@ namespace FunctionAppDemo1
 
                     }
 
+                case "getKeyVaultValue":
+                    {
+                        var secretValue = Environment.GetEnvironmentVariable("ValueFromKeyVault", EnvironmentVariableTarget.Process);
+                        Telemetry.TrackTrace($"Value Stored in Secret : {secretValue}");
+                        break;
+                    }
+
                 default:
                     {
                         Telemetry.TrackTrace("No Type has been given for sending / receiving.");
