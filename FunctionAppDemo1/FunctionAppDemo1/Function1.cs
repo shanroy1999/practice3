@@ -4,7 +4,9 @@ using Microsoft.ApplicationInsights.AspNetCore.Extensions;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.KeyVault;
 using Microsoft.Azure.ServiceBus.Management;
+using Microsoft.Azure.Services.AppAuthentication;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
@@ -264,7 +266,18 @@ namespace FunctionAppDemo1
 
                 case "getKeyVaultValue":
                     {
+                        // /*
                         var secretValue = Environment.GetEnvironmentVariable("ValueFromKeyVault", EnvironmentVariableTarget.Process);
+                        // */
+                        /*
+                        string vaultName = "funckeyvault-1";
+                        string secretName = "funcSecret";
+                        string secretUrl = $"https://{vaultName}.vault.azure.net/secrets/{secretName}";
+                        AzureServiceTokenProvider azureServiceTokenProvider = new AzureServiceTokenProvider();
+                        var keyVaultClient = new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(azureServiceTokenProvider.KeyVaultTokenCallback));
+                        var secretObject = await keyVaultClient.GetSecretAsync(secretUrl).ConfigureAwait(false);
+                        var secretValue = secretObject.Value;
+                        */
                         Telemetry.TrackTrace($"Value Stored in Secret : {secretValue}");
                         break;
                     }
