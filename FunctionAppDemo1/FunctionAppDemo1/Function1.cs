@@ -122,12 +122,12 @@ namespace FunctionAppDemo1
 
                         ServiceBusSender queueSender = InitiateQueueSender();
 
-                        sendMessageToQueue(messagesList, queueSender);
+                        SendMessageToQueue(messagesList, queueSender);
 
                         await queueSender.DisposeAsync();
                         Telemetry.TrackEvent("All messages have been sent to the queue");
 
-                        await addQueueTelemetry();
+                        await AddQueueTelemetry();
                         // */
 
                         /*
@@ -176,7 +176,7 @@ namespace FunctionAppDemo1
                         ServiceBusReceiver queueReceiver;
                         InitiateQueueReceiver(out queueClient, out queueReceiver);
 
-                        IReadOnlyList<ServiceBusReceivedMessage> messagesReceived = receiveQueueMessages(queueReceiver);
+                        IReadOnlyList<ServiceBusReceivedMessage> messagesReceived = ReceiveQueueMessages(queueReceiver);
 
                         // Write the received message body on the console
                         foreach (var message in messagesReceived)
@@ -276,7 +276,7 @@ namespace FunctionAppDemo1
                     }
             }
 
-            return await createCustomResponse(req);
+            return await CreateCustomResponse(req);
         }
 
         private async Task SendMessageToTopic(ServiceBusSender topicSender, ServiceBusMessageBatch messageBatch, int numOfMessages)
@@ -298,7 +298,7 @@ namespace FunctionAppDemo1
             return await topicSender.CreateMessageBatchAsync();
         }
 
-        private async Task<IActionResult> createCustomResponse(HttpRequest req)
+        private async Task<IActionResult> CreateCustomResponse(HttpRequest req)
         {
             string name = req.Query["name"];
 
@@ -376,7 +376,7 @@ namespace FunctionAppDemo1
                 });
         }
 
-        private static IReadOnlyList<ServiceBusReceivedMessage> receiveQueueMessages(ServiceBusReceiver queueReceiver)
+        private static IReadOnlyList<ServiceBusReceivedMessage> ReceiveQueueMessages(ServiceBusReceiver queueReceiver)
         {
             // Receive a ServiceBusReceivedMessage object from the receiver object
             // in the configured received mode.
@@ -394,7 +394,7 @@ namespace FunctionAppDemo1
                 });
         }
 
-        private async Task addQueueTelemetry()
+        private async Task AddQueueTelemetry()
         {
             // ========================================================
             // ADD TELEMETRY TO TRACK THE EVENTS FOR SERVICE BUS QUEUE
@@ -421,7 +421,7 @@ namespace FunctionAppDemo1
             Telemetry.TrackEvent(funcSuccessMessage);
         }
 
-        private void sendMessageToQueue(List<MessageContent> messagesList, ServiceBusSender queueSender)
+        private void SendMessageToQueue(List<MessageContent> messagesList, ServiceBusSender queueSender)
         {
             foreach (MessageContent m in messagesList)
             {
